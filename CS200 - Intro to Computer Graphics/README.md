@@ -1,11 +1,14 @@
 # Intro to Computer Graphics
 
-<center>
-	<img src="https://upload.wikimedia.org/wikipedia/commons/e/e9/Opengl-logo.svg">
-</center>
+<p align="center">
+	<img src="https://upload.wikimedia.org/wikipedia/commons/e/e9/Opengl-logo.svg" width="600">
+</p>
+
+#
 
 <p>
 	This module covers basic use of the OpenGL API to create a real-time rendering environment. 
+  <br/>
 </p>
 
 <table align="center">
