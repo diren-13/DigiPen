@@ -6,13 +6,16 @@
 
 <p>
 	This module covers basic use of the Vulkan API to create a real-time rendering environment. <br/>
-	Vulkan is beneficial due to giving developers lower level access to the rendering pipeline and it's integration of parallelism.
+	Vulkan is beneficial due to giving developers lower level access to the rendering pipeline and it's integration of parallelism. <br/>
+	<br/>
+	This project is made to be a simple model viewer.
+	
 </p>
 
 <blockquote> 
 	<h3> Features </h3>
 	
-	- Model Loader
+	- Model Loading using assimp
 	- Texture Mapping
 	- Lighting
 	- Camera using Spherical Coordinates
