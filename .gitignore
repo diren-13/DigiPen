@@ -1,0 +1,11 @@
+## Diren D Bharwani
+##
+## Custom gitignore file for this repository
+## Specific to all the extra files this doesn't need as most of the code is stored as is, without context.
+
+# Settings Files/Folders
+*.vscode
+*Doxyfile
+
+# Output Files/Folders
+*.out
