@@ -1,7 +1,7 @@
 <h1> Parallel Programming </h1>
 
 <p align="center">
-  <img src="https://assets.nvidiagrid.net/ngc/logos/Cuda.png">
+  <img src="https://www.ximea.com/images/stories/designedforcuda.png">
 </p>
 
 This module explores the use of NVIDIA's CUDA API and GPGPU.
