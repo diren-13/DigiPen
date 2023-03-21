@@ -10,22 +10,22 @@ classDiagram
   direction BT
 
   class AddressInfo {
-    - uint32 ipv4Address
-    - uint16 port
+    - ipv4Address
+    - port
   }
 
   class Socket {
     <<Open>>
-    # Type type
-    # uint32 id
-    # SOCKET handle
-    # boolean isBlocking
+    # type
+    # id
+    # handle
+    # isBlocking
 
     Create()
     IsInvalid()
     Close()
 
-    AddressInfo CreateAddress(uint32 ipv4Address, uint16 port)
+    AddressInfo CreateAddress(ipv4Address, port)
     Status GetErrorStatus()
   }
 
@@ -43,19 +43,19 @@ classDiagram
   }
 
   class UDPSocket {
-    - char buffer
-    - uint64 bufferSize
+    - buffer
+    - bufferSize
 
-    Status Bind(uint32 ipv4Address, uint16 port)
+    Status Bind(ipv4Address, port)
     Unbind()
-    Status Send(void* data, uint64 dataSize, uint32 targetAddr, uint16 targetPort)
-    Status Receive(void* data, uint64 dataSize, uint32 targetAddr, uint16 targetPort)
+    Status Send(*data, dataSize, targetAddr, targetPort)
+    Status Receive(*data, dataSize, targetAddr, targetPort)
   }
 
 
   %% Define Relationships
   Socket      --    AddressInfo
-  Socket      *--   Status
+  Socket      --    Status
   Socket      *--   Type
   UDPSocket   <|--  Socket
 
