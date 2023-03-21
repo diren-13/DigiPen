@@ -1,4 +1,4 @@
-# Intro to Computer Graphics
+# Computer Graphics I
 
 <p align="center">
 	<img src="https://upload.wikimedia.org/wikipedia/commons/e/e9/Opengl-logo.svg" width="600">

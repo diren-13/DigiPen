@@ -1,4 +1,4 @@
-# Intro to Real-Time Rendering
+# Computer Graphics II
 
 <center>
 	<img src="https://upload.wikimedia.org/wikipedia/commons/f/fe/Vulkan_logo.svg">
