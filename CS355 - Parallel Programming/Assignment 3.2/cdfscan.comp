@@ -1,0 +1,77 @@
+/* Start Header *****************************************************************/ 
+/*! \file   cdfscan.comp
+    \author Diren D Bharwani, diren.dbharwani, 390002520 
+    \par    diren.dbharwani@digipen.edu
+    \date   Nov 8, 2022 
+    \brief  Copyright (C) 2022 DigiPen Institute of Technology.
+            Reproduction or disclosure of this file or its contents without the
+            prior written consent of DigiPen Institute of Technology is prohibited.
+*/ 
+/* End Header *******************************************************************/
+
+#version 450
+
+layout (local_size_x = 256) in;
+layout (binding = 0, rgba8) uniform readonly image2D inputImage;
+layout (std430, binding = 2) buffer HistoBuffer
+{
+  uint bin[256];
+  float cdf[256];
+} histogram;
+
+shared float xy[256];
+
+float prob(float x, uint width, uint height)
+{
+  return x / float(width * height);
+}
+
+void main()
+{
+  ivec2 imageDim  = imageSize(inputImage);
+  uint width      = imageDim.x;
+  uint height     = imageDim.y;
+
+  // Populate xy
+  xy[gl_LocalInvocationIndex] = histogram.bin[gl_LocalInvocationIndex];
+
+  memoryBarrierShared();
+  barrier();
+
+  // Reduction phase
+  for (uint stride = 1; stride <= gl_WorkGroupSize.x; stride *= 2) 
+  {
+    uint index = (gl_LocalInvocationID.x + 1) * stride * 2 - 1;
+    if (index < 2 * gl_WorkGroupSize.x)
+        xy[index] += xy[index - stride];
+
+    memoryBarrierShared();
+    barrier();
+  }
+
+  // Post reduction phase
+  for (uint stride = gl_WorkGroupSize.x / 2; stride > 0; stride /= 2) 
+  {
+    memoryBarrierShared();
+    barrier();
+
+    uint index = (gl_LocalInvocationID.x + 1) * stride * 2 - 1;
+
+    if (index + stride < 2 * gl_WorkGroupSize.x) 
+      xy[index + stride] += xy[index];
+  }
+  
+  memoryBarrierShared();
+  barrier();
+
+  float pdf = prob(xy[gl_LocalInvocationIndex], width, height);
+  histogram.cdf[gl_LocalInvocationIndex] = pdf + (gl_LocalInvocationIndex == 0 ? 0.0 : histogram.cdf[gl_LocalInvocationIndex - 1]);
+
+  // Reset bin
+  histogram.bin[gl_LocalInvocationIndex] = 0;
+ 
+  memoryBarrierShared();
+  barrier();
+
+
+}

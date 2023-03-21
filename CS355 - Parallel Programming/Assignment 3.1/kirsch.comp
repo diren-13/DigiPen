@@ -1,0 +1,180 @@
+/* Start Header *****************************************************************/ 
+/*! \file   kirsch.comp
+    \author Diren D Bharwani, diren.dbharwani, 390002520 
+    \par    diren.dbharwani@digipen.edu
+    \date   Oct 2, 2022 
+    \brief  Copyright (C) 2022 DigiPen Institute of Technology.
+            Reproduction or disclosure of this file or its contents without the
+            prior written consent of DigiPen Institute of Technology is prohibited.
+*/ 
+/* End Header *******************************************************************/
+
+#version 450
+
+/* Constants *****************************************************************/
+
+const int NUM_ROTATIONS = 8;
+const int MASK_WIDTH    = 3;
+const int TILE_WIDTH    = 16;
+const int SM_WIDTH      = TILE_WIDTH + MASK_WIDTH - 1;
+
+const int TILE_SQUARE   = TILE_WIDTH * TILE_WIDTH;
+const int SM_SQUARE     = SM_WIDTH * SM_WIDTH;
+
+const int NUM_LOADS     = int(float(SM_SQUARE) / float(TILE_SQUARE)) + 1;
+
+const	float kirsch[NUM_ROTATIONS][MASK_WIDTH][MASK_WIDTH] = {
+
+  /*rotation 1*/
+  {
+    { 5, 5, 5},
+    {-3, 0,-3},
+    {-3,-3,-3}
+  },
+
+  /*rotation 2*/
+  {
+    { 5, 5,-3},
+    { 5, 0,-3},
+    {-3,-3,-3}
+  },
+
+   /*rotation 3*/
+  {
+    { 5,-3,-3},
+    { 5, 0,-3},
+    { 5,-3,-3}
+  },
+
+  /*rotation 4*/
+  {
+    {-3,-3,-3},
+    { 5, 0,-3},
+    { 5, 5,-3}
+  },
+
+  /*rotation 5*/
+  {
+    {-3,-3,-3},
+    {-3, 0,-3},
+    { 5, 5, 5}
+  },
+
+  /*rotation 6*/
+  {
+    {-3,-3,-3},
+    {-3, 0, 5},
+    {-3, 5, 5}
+  },
+
+  /*rotation 7 */
+  {
+    {-3,-3, 5},
+    {-3, 0, 5},
+    {-3,-3, 5}
+  },
+
+  /*rotation 8 */
+  {
+    {-3, 5, 5},
+    {-3, 0, 5},
+    {-3,-3,-3}
+  }
+};
+
+/*****************************************************************************/
+
+layout (local_size_x = TILE_WIDTH, local_size_y = TILE_WIDTH) in;
+layout (binding = 0, rgba8) uniform readonly image2D              inputImage;
+layout (binding = 1, rgba8) uniform image2D                       resultImage;
+
+shared vec3 sharedMemory[SM_WIDTH][SM_WIDTH];
+
+void syncThreads()
+{
+  memoryBarrierShared(); 
+  barrier();
+}
+
+void main()
+{
+  // Get compute shader thread IDs
+  uint threadIdxX = gl_LocalInvocationID.x;
+  uint threadIdxY = gl_LocalInvocationID.y;
+
+  // Get compute shader block IDs
+  uint blockIdxX = gl_WorkGroupID.x;
+  uint blockIdxY = gl_WorkGroupID.y;
+
+  ivec2 imageDim  = imageSize(inputImage);
+  uint width      = imageDim.x;
+  uint height     = imageDim.y;
+
+  for (int loadCount = 0; loadCount < NUM_LOADS; ++loadCount)
+  {
+    // Since the block and the tiles are the same size, we just find the thread index per tile
+    // (Draw it out in MS Excel to help visualise)
+    uint tileThreadIdx  = (threadIdxY * TILE_WIDTH + threadIdxX) + (loadCount * TILE_SQUARE);
+    uint sharedRow  = tileThreadIdx / SM_WIDTH;
+    uint sharedCol  = tileThreadIdx % SM_WIDTH;
+
+    // SM Boundary check
+    if (sharedRow < SM_WIDTH && sharedCol < SM_WIDTH)
+    {
+      uint indexX = (blockIdxX * TILE_WIDTH) + sharedCol - 1;
+      uint indexY = (blockIdxY * TILE_WIDTH) + sharedRow - 1;
+
+      // Boundary check for ghost cells
+      if (indexX >= 0 && indexX < width && indexY >= 0 && indexY < height)
+      {
+        ivec2 texelIdx = ivec2(indexX, indexY); 
+        vec4 texelColor = imageLoad(inputImage, texelIdx);
+        sharedMemory[sharedRow][sharedCol] = vec3(texelColor.xyz);
+      }
+      else
+      {
+        // Surrounding cells are 0 (Ghost cells)
+        sharedMemory[sharedRow][sharedCol] = vec3(0.0, 0.0, 0.0);
+      }
+    }
+
+    syncThreads();
+  }
+
+  // Apply convolution mask
+  uint outputRow = blockIdxY * TILE_WIDTH + threadIdxY;
+  uint outputCol = blockIdxX * TILE_WIDTH + threadIdxX;
+
+  // Boundary check for output (images are usually asymmetrical)
+  if (outputRow >= 0 && outputRow < height && outputCol >= 0 && outputCol < width)
+  {
+    vec3 maxSum = vec3(0.0, 0.0, 0.0);
+
+    for (int rotation = 0; rotation < NUM_ROTATIONS; ++rotation)
+    {
+      vec3 localSum = vec3(0.0, 0.0, 0.0);
+
+      for (int maskRow = 0; maskRow < MASK_WIDTH; ++maskRow)
+      {
+        for (int maskCol = 0; maskCol < MASK_WIDTH; ++maskCol)
+        {
+          // Mask value * colour of texel in shared memory (scalar * vec3)
+          localSum += kirsch[rotation][maskRow][maskCol] * sharedMemory[maskRow + threadIdxY][maskCol + threadIdxX];
+        }
+      }
+
+      // Take the components of largest sum
+      // min & max operate component-wise
+      maxSum = max(localSum, maxSum);
+    }
+
+    // Magic from the c++ version. I honestly do not understand this part.
+    maxSum = min(max(maxSum / NUM_ROTATIONS, vec3(0.0, 0.0, 0.0)), vec3(1.0, 1.0, 1.0));
+
+    // We use the global thread ID here since the threads map 1-1 to the image within this boundary check
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(maxSum, 1.0));
+  }
+
+  syncThreads();
+}
+

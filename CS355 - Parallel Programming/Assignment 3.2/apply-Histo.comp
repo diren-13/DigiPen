@@ -1,0 +1,68 @@
+/* Start Header *****************************************************************/ 
+/*! \file   apply-Histo.comp
+    \author Diren D Bharwani, diren.dbharwani, 390002520 
+    \par    diren.dbharwani@digipen.edu
+    \date   Nov 8, 2022 
+    \brief  Copyright (C) 2022 DigiPen Institute of Technology.
+            Reproduction or disclosure of this file or its contents without the
+            prior written consent of DigiPen Institute of Technology is prohibited.
+*/ 
+/* End Header *******************************************************************/
+
+#version 450
+
+/* Type Definitions ************************************************************/
+
+struct Histogram
+{
+  uint  bin;
+  float cdf;
+};
+
+/*******************************************************************************/
+
+/* Constants ********************************************************************/
+
+const mat3 RGBtoYUV = mat3
+(
+  0.299, -0.169,  0.499,
+  0.587, -0.331, -0.418,
+  0.114,  0.499, -0.0813
+);
+
+const mat3 YUVtoRGB = mat3
+(
+  1.0,   1.0,     1.0,
+  0.0,   -0.344,  1.772,
+  1.402, -0.714,  0.0
+);
+
+/********************************************************************************/
+
+layout (local_size_x = 16, local_size_y = 16) in;
+layout (binding = 0, rgba8) uniform readonly image2D inputImage;
+layout (binding = 1, rgba8) uniform image2D resultImage;
+layout (std430, binding = 2) buffer HistoBuffer
+{
+  // Histogram histogram[256];
+  uint bin[256];
+  float cdf[256];
+} histogram;
+
+float correctColour(float cdfVal, float cdfMin)
+{
+  return clamp (255.0 * (cdfVal - cdfMin) / (1.0f - cdfMin), 0.0, 255.0);
+}
+
+void main()
+{
+  float cdfMin = histogram.cdf[0];
+
+  vec3 texelColour = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.xy)).rgb * 255.0;
+
+  vec3 YUV = RGBtoYUV * texelColour;
+  YUV.x = correctColour(histogram.cdf[int(YUV.x)], cdfMin); 
+
+  vec3 outColour = clamp(YUVtoRGB * YUV, 0.0, 255.0) / 255.0;
+  imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(outColour, 1.0));
+}
