@@ -62,10 +62,6 @@
 			<td style="text-align:left">CS315</td>
 			<td style="text-align:center">Low-Level Programming</td>
 		</tr>
-		<tr>
-			<td style="text-align:left">CSD3120</td>
-			<td style="text-align:center">Intro to VR</td>
-		</tr>
 	</tbody>
 </table>
 
